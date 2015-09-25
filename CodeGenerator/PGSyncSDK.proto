@@ -1,0 +1,257 @@
+/*
+ * PGSyncSDK.proto
+ *
+ *  Created on: Aug 18, 2015
+ *      Author: HuangQi
+ */
+syntax = "proto2";
+package pinguo.syncsdk;
+
+option java_package = "us.pinguo.bigalbum.android.synclibrary.jni";
+option java_outer_classname = "PGSyncSDKMessage";
+
+option optimize_for = LITE_RUNTIME;
+
+enum PBConfigItem {
+
+    /*系统配置*/
+    SYSTEM_CONFIG_APPNAME = 1;          // 应用名，如Camera360
+    SYSTEM_CONFIG_APPVERSION = 2;       // 应用版本，如1.0.1
+    SYSTEM_CONFIG_SYSTEMVERSION = 3;    // 操作系统版本
+    SYSTEM_CONFIG_PLATFORM = 4;         // 设备平台信息，可选值(ios/android/windows/iphone/winphone)
+    SYSTEM_CONFIG_DEVICE = 5;           // 设备名
+    SYSTEM_CONFIG_LOCALE = 6;           // 设备语言
+    SYSTEM_CONFIG_CHANNEL = 7;          // 应用渠道
+    SYSTEM_CONFIG_MNC = 8;              // 移动商国家代码, 若平台为windows可不传此参数，其他平台必填
+    SYSTEM_CONFIG_MCC = 9;              // 移动提供商代码, 若平台为windows可不传此参数，其他平台必填
+    SYSTEM_CONFIG_ICC = 10;             // 若平台为windows可不传此参数，其他平台必填
+    SYSTEM_CONFIG_DEVID = 11;           // 设备ID, 用户首次使用可不传
+    SYSTEM_CONFIG_SERVICEHOST = 12;     // 服务主机
+    SYSTEM_CONFIG_APPKEY = 13;          // 
+    SYSTEM_CONFIG_SECRET = 14;          // 
+
+    /*在这里添加新的系统配置*/
+    SYSTEM_CONFIG_RESERVED = 0x1F;      // 保留值
+    
+    /*用户配置*/
+    USER_CONFIG_SYNCABLE = 0x20;        // 是否开启原图上传(默认值由服务端返回)
+    USER_CONFIG_MAXPUSHCOUNT = 0x21;    // 一次最大提交命令数(默认值由服务端返回)
+    USER_CONFIG_MAXPULLCOUNT = 0x22;    // 一次最大拉取命令数(默认值由服务端返回)
+    USER_CONFIG_PULLINTERVAL = 0x23;    // 拉取更新间隔(默认值由服务端返回)
+    /*在这里添加新的用户配置*/
+    USER_CONFIG_RESERVED = 0x3F;        // 保留值
+}
+
+/*
+ * 照片对象
+ */
+message PBPhoto {
+    required string uId = 1;            // 照片ID(必填)
+    optional string resId = 2;          // 照片资源ID
+    optional string thumbId = 3;        // 照片缩略图资源ID
+    optional string name = 4;           // 照片名[传入]
+    optional string eTag = 5;           // 照片etag，根据照片内容计算
+    optional uint32 crc32 = 6;          // 照片crc32
+    optional uint32 width = 7;          // 照片宽[传入]
+    optional uint32 height = 8;         // 照片高[传入]
+    optional uint32 size = 9;           // 照片大小(字节)
+    optional uint32 avgColor = 10;      // 照片平均色[传入]
+    optional double longitude = 11;     // 照片经度[传入]
+    optional double latitude = 12;      // 照片纬度[传入]
+    optional bool hidden = 13;          // 照片是否隐藏
+    optional bool favorite = 14;        // 照片是否被喜欢
+    optional Status status = 15;        // 照片状态
+    optional double photoTime = 16;     // 拍照时间[传入]
+    optional string url = 17;           // 照片访问URL
+    optional Uploaded uploaded = 18;    // 是否已经上传
+    enum Status {
+        STATUS_NORMAL = 0;       // 正常
+        STATUS_DELETED = 1;      // 标记删除
+        STATUS_DESTROIED = 2;    // 销毁
+    }
+    enum Uploaded {
+        UPLOADED_NONE = 0;                  // 00 未上传
+        UPLOADED_THUMBNAIL = 1;             // 01 已上传缩略图
+        UPLOADED_ORIGINAL  = 2;             // 10 已上传原图
+        UPLOADED_THUMBNAIL_ORIGINAL = 3;    // 11 = THUMBNAIL | ORIGINAL
+    }
+}
+
+/*
+ * 缩略图对象
+ */
+message PBThumbnail {
+    required string photoId = 1;   // 对应的照片id
+    required string resId = 2;     // 缩略图资源ID
+}
+
+/*
+ * 影集对象
+ */
+message PBGallery {
+    required string uId = 1;
+    optional string name = 2;       // 影集名
+    optional string coverId = 3;    // 封面照片id
+    optional Status status = 4;
+    enum Status {
+        STATUS_NORMAL = 0;    // 正常
+        STATUS_DELETED = 1;   // 删除
+    }
+}
+
+/*
+ * 照片关系对象
+ */
+message PBPhotoRelation {
+    required string photoId = 1;
+    required string relatedObjId = 2;    //与Photo关联的对象id
+}
+
+/*
+ * 照片地理位置信息对象
+ */
+message PBPhotoAddress {
+    required string photoId = 1;
+    optional double longitude = 2;        // 照片经度
+    optional double latitude = 3;         // 照片纬度
+    optional uint32 city_code = 4;        // 城市代码
+    optional uint32 country_code = 5;     // 国家代码
+    /*英文*/
+    optional string country_en = 6;       // 国家名
+    optional string province_en = 7;      // 省名
+    optional string city_en = 8;          // 市名
+    optional string district_en = 9;      // 区名
+    optional string street_en = 10;       // 街道名
+    optional string streetNum_en = 11;    // 街道号
+    optional string poi_en = 12;          // POI信息
+    /*中文*/
+    optional string country_zh = 13;
+    optional string province_zh = 14;
+    optional string city_zh = 15;
+    optional string district_zh = 16;
+    optional string street_zh = 17;
+    optional string streetNum_zh = 18;
+    optional string poi_zh = 19;
+}
+
+/*
+ * 标签对象
+ */
+message PBTag {
+    required string uId = 1;      // 标签id
+    optional string name = 2;    // 标签名
+}
+
+/*
+ * 事件对象
+ */
+message PBEvent {
+    required string uId = 1;         // 事件id
+    optional string name = 2;       // 事件名
+    optional string coverId = 3;    // 事件封面照片id
+    optional Status status = 4;
+    enum Status {
+        STATUS_NORMAL = 0;    // 正常
+        STATUS_DELETED = 1;   // 删除
+    }
+}
+
+/*
+ * 人脸对象
+ */
+message PBFace {
+    required string uId = 1;            // 人脸ID
+    optional string resId = 2;         // 人脸资源ID
+    optional string name = 3;          // 人脸名
+    optional string photoId = 4;       // 人脸对应的照片id
+    optional string faceGrpId = 5;     // 人脸组id
+    optional string recomGrpId = 6;    // 系统推荐组id
+    optional string eTag = 7;          // 人脸etag，根据内容计算
+    optional uint32 width = 8;         // 人脸宽度
+    optional uint32 height = 9;        // 人脸高度
+    optional string url = 10;          // 人脸访问URL
+    optional bool uploaded = 11;       // 是否已经上传
+}
+
+/*
+ * 人脸组对象
+ */
+message PBFaceGroup {
+    required string uId = 1;         // 人脸组id
+    optional string name = 2;       // 人脸组名
+    optional string coverId = 3;    // 人脸组封面人脸id
+    optional Status status = 4;
+    enum Status {
+        STATUS_NORMAL = 0;    // 正常
+        STATUS_DELETED = 1;   // 删除
+    }
+}
+
+/*
+ * 人脸关系对象
+ */
+message PBFaceRelation {
+    required string faceId = 1;
+    required string relatedObjId = 2;    //与Face关联的对象id
+}
+
+/*
+ * 回调动作
+ */
+enum PBAction {
+    ACTION_NONE = -1;
+    ACTION_DELETE = 0;    // 删除
+    ACTION_INSERT = 1;    // 插入
+    ACTION_UPDATE = 2;    // 更新
+}
+
+/*
+ * （回调/查询）实体
+ */
+enum PBEntity {
+    ENTITY_NONE = -1;
+    ENTITY_PHOTO = 0;            // 照片
+    ENTITY_GALLERY = 1;          // 影集
+    ENTITY_PHOTOGALLERY = 2;     // 照片-影集 关系
+    ENTITY_PHOTOADDRESS = 3;     // 照片地理位置信息
+    ENTITY_TAG = 4;              // 标签
+    ENTITY_PHOTOTAG = 5;         // 照片-标签 关系
+    ENTITY_EVENT = 6;            // 事件
+    ENTITY_PHOTOEVENT = 7;       // 照片-事件 关系
+    ENTITY_FACE = 8;             // 人脸
+    ENTITY_FACEGROUP = 9;        // 人脸组
+    ENTITY_FACERELATION = 10;    // 人脸-人脸组关系
+}
+
+/*
+ * 对象链表
+ */
+message PBList {
+    repeated PBPhoto photo = 1;                    // 照片
+    repeated PBGallery gallery = 2;                // 影集
+    repeated PBTag tag = 3;                        // 标签
+    repeated PBEvent event = 4;                    // 事件
+    repeated PBPhotoRelation photoRelation = 5;    // 照片关系
+    repeated PBPhotoAddress photoAddress = 6;      // 照片地理位置信息
+    repeated PBFace face = 7;                      // 人脸
+    repeated PBFaceGroup faceGroup = 8;            // 人脸组
+    repeated PBFaceRelation faceRelation = 9;      // 人脸关系
+}
+
+/*
+ * 查询条件
+ */
+message PBQueryCondtion {
+    required PBEntity entity = 1;    // 查询实体
+    repeated string id = 2;          // 实体的id（0个id=>查询所有, >=1个id查询1条或多条数据）
+}
+
+/*
+ * 回调数据
+ */
+message PBCallbackData {
+    required PBAction action = 1;    // 动作
+    required PBEntity entity = 2;    // 实体
+    required PBList array = 3;       // 对象链表
+}
+

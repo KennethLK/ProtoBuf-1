@@ -152,6 +152,7 @@ namespace SilentOrbit.ProtocolBuffers
                 }
                 cw.WriteLine();
             }
+            cw.WriteLine("public string ChangedProp { get; set; }");
 
             //Wire format field ID
 #if DEBUGx
@@ -178,7 +179,60 @@ namespace SilentOrbit.ProtocolBuffers
             else if (f.ProtoType is ProtoMessage && f.ProtoType.OptionType == "struct")
                 return f.OptionAccess + " " + type + " " + f.CsName + ";";
             else
-                return f.OptionAccess + " " + type + " " + f.CsName + " { get; set; }";
+            {
+                string line = "private " + type + " _" + f.CsName;
+                switch (f.ProtoType.ProtoName)
+                {
+                    case ProtoBuiltin.Double:
+                        line += " = 0.0D";
+                        break;
+                    case ProtoBuiltin.Float:
+                        line += " = 0.0F";
+                        break;
+                    case ProtoBuiltin.Int32: //Wire format is 64 bit varint
+                        line += " = 0";
+                        break;
+                    case ProtoBuiltin.Int64:
+                        line += " = 0l";
+                        break;
+                    case ProtoBuiltin.UInt32:
+                        line += " = 0u";
+                        break;
+                    case ProtoBuiltin.UInt64:
+                        line += " = 0ul";
+                        break;
+                    case ProtoBuiltin.SInt32:
+                        line += " = 0";
+                        break;
+                    case ProtoBuiltin.SInt64:
+                        line += " = 0";
+                        break;
+                    case ProtoBuiltin.Fixed32:
+                        line += " = 0";
+                        break;
+                    case ProtoBuiltin.Fixed64:
+                        line += " = 0";
+                        break;
+                    case ProtoBuiltin.SFixed32:
+                        line += " = 0";
+                        break;
+                    case ProtoBuiltin.SFixed64:
+                        line += " = 0";
+                        break;
+                    case ProtoBuiltin.Bool:
+                        line += " = false";
+                        break;
+                    case ProtoBuiltin.String:
+                        line += " = null";
+                        break;
+                }
+                line += ";\r\n";
+                line += f.OptionAccess + " " + type + " " + f.CsName;
+                line += " \r\n{";
+                line += "\r\n\tget\r\n\t{\r\n\t\treturn _" + f.CsName + ";\r\n\t}";
+                line += "\r\n\tset\r\n\t{\r\n\t\tChangedProp += \"" + f.CsName + ",\";\r\n\t\t_" + f.CsName + " = value;\r\n\t}\r\n}";
+                return line;
+            }
         }
     }
 }

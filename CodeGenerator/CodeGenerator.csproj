@@ -88,7 +88,14 @@
       <LogicalName>ProtocolParserMemory4</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <None Include="BuildProto.bat">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <Content Include="PGSyncSDK.proto">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
   <ProjectExtensions>
     <MonoDevelop>
       <Properties>

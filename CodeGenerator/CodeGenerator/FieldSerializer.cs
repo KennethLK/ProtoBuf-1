@@ -87,6 +87,7 @@ namespace SilentOrbit.ProtocolBuffers
                 }
 
                 cw.WriteLine("instance." + f.CsName + " = " + FieldReaderType(f, "stream", "br", "instance." + f.CsName) + ";");
+                cw.WriteLine("instance.ChangedProp += \"" + f.CsName + ",\";");
             }
             return true;
         }
@@ -250,7 +251,7 @@ namespace SilentOrbit.ProtocolBuffers
             //10% faster than original using GetBuffer rather than ToArray
             cw.WriteLine("uint length" + f.ID + " = (uint)msField.Length;");
             cw.WriteLine(ProtocolParser.Base + ".WriteUInt32(" + stream + ", length" + f.ID + ");");
-            cw.WriteLine("msField.WriteTo("+stream+");");
+            cw.WriteLine("msField.WriteTo(" + stream + ");");
         }
 
         /// <summary>
@@ -258,95 +259,104 @@ namespace SilentOrbit.ProtocolBuffers
         /// </summary>
         public void FieldWriter(ProtoMessage m, Field f, CodeWriter cw, Options options)
         {
-            if (f.Rule == FieldRule.Repeated)
+            try
             {
-                if (f.OptionPacked == true)
+                cw.WriteLine("if (instance.ChangedProp.IndexOf(\"" + f.CsName + "\") >= 0)");
+                cw.Bracket();
+                if (f.Rule == FieldRule.Repeated)
                 {
-                    //Repeated packed
-                    cw.IfBracket("instance." + f.CsName + " != null");
-
-                    KeyWriter("stream", f.ID, Wire.LengthDelimited, cw);
-                    if (f.ProtoType.WireSize < 0)
+                    if (f.OptionPacked == true)
                     {
-                        //Un-optimized, unknown size
-                        cw.WriteLine("msField.SetLength(0);");
-                        if (f.IsUsingBinaryWriter)
-                            cw.WriteLine("BinaryWriter bw" + f.ID + " = new BinaryWriter(ms" + f.ID + ");");
+                        //Repeated packed
+                        cw.IfBracket("instance." + f.CsName + " != null");
 
-                        cw.ForeachBracket("var i" + f.ID + " in instance." + f.CsName);
-                        FieldWriterType(f, "msField", "bw" + f.ID, "i" + f.ID, cw);
+                        KeyWriter("stream", f.ID, Wire.LengthDelimited, cw);
+                        if (f.ProtoType.WireSize < 0)
+                        {
+                            //Un-optimized, unknown size
+                            cw.WriteLine("msField.SetLength(0);");
+                            if (f.IsUsingBinaryWriter)
+                                cw.WriteLine("BinaryWriter bw" + f.ID + " = new BinaryWriter(ms" + f.ID + ");");
+
+                            cw.ForeachBracket("var i" + f.ID + " in instance." + f.CsName);
+                            FieldWriterType(f, "msField", "bw" + f.ID, "i" + f.ID, cw);
+                            cw.EndBracket();
+
+                            BytesWriter(f, "stream", cw);
+                        }
+                        else
+                        {
+                            //Optimized with known size
+                            //No memorystream buffering, write size first at once
+
+                            //For constant size messages we can skip serializing to the MemoryStream
+                            cw.WriteLine(ProtocolParser.Base + ".WriteUInt32(stream, " + f.ProtoType.WireSize + "u * (uint)instance." + f.CsName + ".Count);");
+
+                            cw.ForeachBracket("var i" + f.ID + " in instance." + f.CsName);
+                            FieldWriterType(f, "stream", "bw", "i" + f.ID, cw);
+                            cw.EndBracket();
+                        }
                         cw.EndBracket();
-
-                        BytesWriter(f, "stream", cw);
                     }
                     else
                     {
-                        //Optimized with known size
-                        //No memorystream buffering, write size first at once
-
-                        //For constant size messages we can skip serializing to the MemoryStream
-                        cw.WriteLine(ProtocolParser.Base + ".WriteUInt32(stream, " + f.ProtoType.WireSize + "u * (uint)instance." + f.CsName + ".Count);");
-
+                        //Repeated not packet
+                        cw.IfBracket("instance." + f.CsName + " != null");
                         cw.ForeachBracket("var i" + f.ID + " in instance." + f.CsName);
+                        KeyWriter("stream", f.ID, f.ProtoType.WireType, cw);
                         FieldWriterType(f, "stream", "bw", "i" + f.ID, cw);
                         cw.EndBracket();
-                    }
-                    cw.EndBracket();
-                }
-                else
-                {
-                    //Repeated not packet
-                    cw.IfBracket("instance." + f.CsName + " != null");
-                    cw.ForeachBracket("var i" + f.ID + " in instance." + f.CsName);
-                    KeyWriter("stream", f.ID, f.ProtoType.WireType, cw);
-                    FieldWriterType(f, "stream", "bw", "i" + f.ID, cw);
-                    cw.EndBracket();
-                    cw.EndBracket();
-                }
-                return;
-            }
-            else if (f.Rule == FieldRule.Optional)
-            {
-                if (options.Nullable ||
-                    f.ProtoType is ProtoMessage ||
-                    f.ProtoType.ProtoName == ProtoBuiltin.String ||
-                    f.ProtoType.ProtoName == ProtoBuiltin.Bytes)
-                {
-                    if (f.ProtoType.Nullable || options.Nullable) //Struct always exist, not optional
-                        cw.IfBracket("instance." + f.CsName + " != null");
-                    KeyWriter("stream", f.ID, f.ProtoType.WireType, cw);
-                    var needValue = !f.ProtoType.Nullable && options.Nullable;
-                    FieldWriterType(f, "stream", "bw", "instance." + f.CsName + (needValue ? ".Value" : ""), cw);
-                    if (f.ProtoType.Nullable || options.Nullable) //Struct always exist, not optional
                         cw.EndBracket();
+                    }
                     return;
                 }
-                if (f.ProtoType is ProtoEnum)
+                else if (f.Rule == FieldRule.Optional)
                 {
-                    if (f.OptionDefault != null)
-                        cw.IfBracket("instance." + f.CsName + " != " + f.ProtoType.CsType + "." + f.OptionDefault);
+                    if (options.Nullable ||
+                        f.ProtoType is ProtoMessage ||
+                        f.ProtoType.ProtoName == ProtoBuiltin.String ||
+                        f.ProtoType.ProtoName == ProtoBuiltin.Bytes)
+                    {
+                        if (f.ProtoType.Nullable || options.Nullable) //Struct always exist, not optional
+                            cw.IfBracket("instance." + f.CsName + " != null");
+                        KeyWriter("stream", f.ID, f.ProtoType.WireType, cw);
+                        var needValue = !f.ProtoType.Nullable && options.Nullable;
+                        FieldWriterType(f, "stream", "bw", "instance." + f.CsName + (needValue ? ".Value" : ""), cw);
+                        if (f.ProtoType.Nullable || options.Nullable) //Struct always exist, not optional
+                            cw.EndBracket();
+                        return;
+                    }
+                    if (f.ProtoType is ProtoEnum)
+                    {
+                        if (f.OptionDefault != null)
+                            cw.IfBracket("instance." + f.CsName + " != " + f.ProtoType.CsType + "." + f.OptionDefault);
+                        KeyWriter("stream", f.ID, f.ProtoType.WireType, cw);
+                        FieldWriterType(f, "stream", "bw", "instance." + f.CsName, cw);
+                        if (f.OptionDefault != null)
+                            cw.EndBracket();
+                        return;
+                    }
                     KeyWriter("stream", f.ID, f.ProtoType.WireType, cw);
                     FieldWriterType(f, "stream", "bw", "instance." + f.CsName, cw);
-                    if (f.OptionDefault != null)
-                        cw.EndBracket();
                     return;
                 }
-                KeyWriter("stream", f.ID, f.ProtoType.WireType, cw);
-                FieldWriterType(f, "stream", "bw", "instance." + f.CsName, cw);
-                return;
-            }
-            else if (f.Rule == FieldRule.Required)
-            {
-                if (f.ProtoType is ProtoMessage && f.ProtoType.OptionType != "struct" ||
-                    f.ProtoType.ProtoName == ProtoBuiltin.String ||
-                    f.ProtoType.ProtoName == ProtoBuiltin.Bytes)
+                else if (f.Rule == FieldRule.Required)
                 {
-                    cw.WriteLine("if (instance." + f.CsName + " == null)");
-                    cw.WriteIndent("throw new global::SilentOrbit.ProtocolBuffers.ProtocolBufferException(\"" + f.CsName + " is required by the proto specification.\");");
+                    if (f.ProtoType is ProtoMessage && f.ProtoType.OptionType != "struct" ||
+                        f.ProtoType.ProtoName == ProtoBuiltin.String ||
+                        f.ProtoType.ProtoName == ProtoBuiltin.Bytes)
+                    {
+                        cw.WriteLine("if (instance." + f.CsName + " == null)");
+                        cw.WriteIndent("throw new global::SilentOrbit.ProtocolBuffers.ProtocolBufferException(\"" + f.CsName + " is required by the proto specification.\");");
+                    }
+                    KeyWriter("stream", f.ID, f.ProtoType.WireType, cw);
+                    FieldWriterType(f, "stream", "bw", "instance." + f.CsName, cw);
+                    return;
                 }
-                KeyWriter("stream", f.ID, f.ProtoType.WireType, cw);
-                FieldWriterType(f, "stream", "bw", "instance." + f.CsName, cw);
-                return;
+            }
+            finally
+            {
+                cw.EndBracket();
             }
             throw new NotImplementedException("Unknown rule: " + f.Rule);
         }
@@ -360,7 +370,7 @@ namespace SilentOrbit.ProtocolBuffers
                     case "DateTime":
                         if (options.Utc)
                         {
-                            cw.WriteLine(FieldWriterPrimitive(f, stream, binaryWriter, "(" +instance + ".Kind == DateTimeKind.Utc ? " + instance + " : " + instance + ".ToUniversalTime()).Ticks"));
+                            cw.WriteLine(FieldWriterPrimitive(f, stream, binaryWriter, "(" + instance + ".Kind == DateTimeKind.Utc ? " + instance + " : " + instance + ".ToUniversalTime()).Ticks"));
                         }
                         else
                             cw.WriteLine(FieldWriterPrimitive(f, stream, binaryWriter, instance + ".Ticks"));
